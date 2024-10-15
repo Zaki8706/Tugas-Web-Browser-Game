@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asteroid Attack</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding-top: 50px;
+        }
+        h1 {
+            font-size: 48px;
+        }
+        a, button {
+            display: block;
+            margin: 20px;
+            padding: 15px;
+            font-size: 24px;
+            color: white;
+            background-color: #555;
+            text-decoration: none;
+            border: none;
+            border-radius: 8px;
+            width: 200px;
+            margin: 20px auto;
+            cursor: pointer;
+        }
+        a:hover, button:hover {
+            background-color: #777;
+        }
+        .section {
+            display: none;
+        }
+        #menu {
+            display: block;
+        }
+        canvas {
+            background-color: black;
+            display: block;
+            margin: 0 auto;
+            border: 2px solid white;
+        }
+        #scoreDisplay {
+            font-size: 24px;
+            color: white;
+        }
+        #imageSelector {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Menu Game -->
+    <div id="menu" class="section">
+        <h1>Welcome to the Game</h1>
+
+        <!-- Image Selector -->
+        <div id="imageSelector">
+            <label for="playerImageInput">Select Player Image:</label>
+            <input type="file" id="playerImageInput" accept="image/*"><br><br>
+
+            <label for="obstacleImageInput">Select Obstacle Image:</label>
+            <input type="file" id="obstacleImageInput" accept="image/*"><br><br>
+        </div>
+
+        <button onclick="startGame()">Start Game</button>
+        <button onclick="showSection('halloffame')">Hall of Fame</button>
+    </div>
+
+    <!-- Main Game Page -->
+    <div id="game" class="section">
+        <h1>Game in Progress</h1>
+        <canvas id="gameCanvas" width="500" height="600"></canvas>
+        <p id="scoreDisplay">Score: 0</p>
+        <button onclick="endGame()">Finish Game</button>
+        <button onclick="showSection('menu')">Back to Menu</button>
+    </div>
+
+    <!-- Hall of Fame Page -->
+    <div id="halloffame" class="section">
+        <h1>Hall of Fame</h1>
+        <ul id="hallOfFameList"></ul>
+        <button onclick="resetHallOfFame()">Reset Hall of Fame</button>
+        <button onclick="showSection('menu')">Back to Menu</button>
+    </div>
+
+    <script>
+        let score = 0;
+        let playerImage = new Image();
+        let obstacleImage = new Image();
+        let playerX = 220, playerY = 500;
+        let obstacleX = Math.random() * 450, obstacleY = 0;
+        let gameInterval;
+
+        // Handle image upload
+        document.getElementById('playerImageInput').addEventListener('change', function(event) {
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                playerImage.src = e.target.result;
+            };
+            reader.readAsDataURL(event.target.files[0]);
+        });
+
+        document.getElementById('obstacleImageInput').addEventListener('change', function(event) {
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                obstacleImage.src = e.target.result;
+            };
+            reader.readAsDataURL(event.target.files[0]);
+        });
+
+        // Handle player movement
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'ArrowLeft' && playerX > 0) {
+                playerX -= 20;
+            }
+            if (event.key === 'ArrowRight' && playerX < 440) {
+                playerX += 20;
+            }
+        });
+
+        // Animasi game
+        function gameLoop() {
+            let canvas = document.getElementById('gameCanvas');
+            let ctx = canvas.getContext('2d');
+
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw player
+            if (playerImage.complete) {
+                ctx.drawImage(playerImage, playerX, playerY, 60, 60);
+            }
+
+            // Draw obstacle
+            if (obstacleImage.complete) {
+                ctx.drawImage(obstacleImage, obstacleX, obstacleY, 50, 50);
+            }
+
+            // Move obstacle
+            obstacleY += 5;
+            if (obstacleY > canvas.height) {
+                obstacleY = 0;
+                obstacleX = Math.random() * 450;
+                score += 10;  // Tambah skor setiap kali obstacle berhasil dilewati
+                document.getElementById('scoreDisplay').innerText = 'Score: ' + score;
+            }
+
+            // Cek benturan
+            if (obstacleY + 50 >= playerY && obstacleX + 50 >= playerX && obstacleX <= playerX + 60) {
+                clearInterval(gameInterval);  // Hentikan permainan jika ada benturan
+                alert("Game Over! Your score: " + score);
+                endGame();
+            }
+        }
+
+        // Start game
+        function startGame() {
+            score = 0;
+            obstacleY = 0;
+
+            // Pastikan gambar sudah dimuat sebelum memulai permainan
+            if (playerImage.src && obstacleImage.src) {
+                gameInterval = setInterval(gameLoop, 1000 / 60);  // Loop animasi setiap 60fps
+                showSection('game');
+            } else {
+                alert("Please select both player and obstacle images before starting the game.");
+            }
+        }
+
+        // Show the selected section
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(section => section.style.display = 'none');
+            document.getElementById(sectionId).style.display = 'block';
+
+            if (sectionId === 'halloffame') {
+                loadHallOfFame();
+            }
+        }
+
+        // Simulate finishing the game and storing score in local storage
+        function endGame() {
+            clearInterval(gameInterval);
+
+            let playerName = prompt("Enter your name:");
+            if (playerName) {
+                let hallOfFame = JSON.parse(localStorage.getItem('hallOfFame')) || [];
+                hallOfFame.push({ name: playerName, score: score });
+                hallOfFame.sort((a, b) => b.score - a.score);
+                localStorage.setItem('hallOfFame', JSON.stringify(hallOfFame));
+            }
+
+            showSection('halloffame');
+        }
+
+        // Load and display the Hall of Fame from local storage
+        function loadHallOfFame() {
+            let hallOfFame = JSON.parse(localStorage.getItem('hallOfFame')) || [];
+            let listElement = document.getElementById('hallOfFameList');
+            listElement.innerHTML = '';
+
+            if (hallOfFame.length > 0) {
+                hallOfFame.forEach(player => {
+                    let listItem = document.createElement('li');
+                    listItem.textContent = `${player.name} - Score: ${player.score}`;
+                    listElement.appendChild(listItem);
+                });
+            } else {
+                listElement.innerHTML = '<li>No scores yet</li>';
+            }
+        }
+
+        // Reset the Hall of Fame by clearing local storage
+        function resetHallOfFame() {
+            if (confirm("Are you sure you want to reset the Hall of Fame?")) {
+                localStorage.removeItem('hallOfFame');
+                loadHallOfFame();
+            }
+        }
+
+        // Initially load the Hall of Fame on page load
+        document.addEventListener('DOMContentLoaded', loadHallOfFame);
+    </script>
+
+</body>
+</html>
